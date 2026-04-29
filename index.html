@@ -4568,11 +4568,19 @@ async function gistSync(manual = false) {
     if (!gistData || localTs >= remoteTs) {
       await gistWrite(DB);
     } else {
-      DB = gistData;
-      gistToken = DB.settings.gist?.token || gistToken;
-      gistId    = DB.settings.gist?.gistId || gistId;
-      _saveDataToStorage(DB);
-      refreshCurrentScreen();
+      // Préserver le token local avant d'écraser DB
+    const savedToken  = gistToken;
+    const savedGistId = gistId;
+    DB = gistData;
+    // Réinjecter le token dans DB au cas où il manque dans le remote
+    if (!DB.settings) DB.settings = {};
+    if (!DB.settings.gist) DB.settings.gist = {};
+    DB.settings.gist.token  = DB.settings.gist?.token  || savedToken;
+    DB.settings.gist.gistId = DB.settings.gist?.gistId || savedGistId;
+    gistToken = DB.settings.gist.token;
+    gistId    = DB.settings.gist.gistId;
+          _saveDataToStorage(DB);
+          refreshCurrentScreen();
     }
     if (!DB.settings.gist) DB.settings.gist = {};
     DB.settings.gist.lastSync = Date.now();
@@ -4653,9 +4661,15 @@ async function resolveConflict(choice) {
     if (choice === 'local') {
       await gistWrite(gistConflict.local);
     } else {
+      const savedToken2  = gistToken;
+      const savedGistId2 = gistId;
       DB = gistConflict.remote;
-      gistToken = DB.settings.gist?.token || gistToken;
-      gistId    = DB.settings.gist?.gistId || gistId;
+      if (!DB.settings) DB.settings = {};
+      if (!DB.settings.gist) DB.settings.gist = {};
+      DB.settings.gist.token  = DB.settings.gist?.token  || savedToken2;
+      DB.settings.gist.gistId = DB.settings.gist?.gistId || savedGistId2;
+      gistToken = DB.settings.gist.token;
+      gistId    = DB.settings.gist.gistId;
       _saveDataToStorage(DB);
       refreshCurrentScreen();
       await gistWrite(DB);
@@ -4922,7 +4936,7 @@ window.addEventListener('DOMContentLoaded', () => {
       <div class="form-group">
         <label class="form-label">Personal Access Token GitHub</label>
         <input class="form-input" type="password" id="input-gist-token"
-          placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+          placeholder="votre-token-github"
           style="font-size:13px;font-family:monospace;">
       </div>
       <button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="gistConnect()">
